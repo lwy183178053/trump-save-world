@@ -26,11 +26,20 @@ namespace Core.Table
     /// 2) 第二行开始：数据
     ///    例如：A_1 | 支持率 | float | 50 | 0 | 100 | 开局支持率
     ///
+    /// 如果你想让策划表更好读，也可以这样：
+    /// - 第 1 行：英文代码字段名
+    /// - 第 2 行：中文说明
+    /// - 第 3 行：字段类型
+    /// - 第 4 行开始：数据
+    ///
+    /// 这种情况读取时用：
+    /// ExcelTableLoader.LoadSheet<YourRow>(path, "礼物表", 1, 4)
+    ///
     /// 规则：
     /// - 类名建议和 sheet 名对应
     /// - 字段名和表头尽量保持一致
     /// - 字段类型支持 string / int / float / bool / enum
-    /// - 如果你想写类型说明，建议另开说明文档，不要放在数据表第二行
+    /// - 如果只是想看整张表，不想转成类，用 LoadRawSheet
     /// </summary>
     public static class ExcelTableLoader
     {
@@ -51,16 +60,78 @@ namespace Core.Table
         }
 
         /// <summary>
+        /// 读取整个 Excel 文件里的所有 sheet。
+        /// 不做反射，不转成类，直接返回原始表格内容。
+        ///
+        /// 返回值：
+        /// sheet 名 -> 表格二维列表
+        ///
+        /// 适合你现在这种“先看看整张表读出来是什么样”的阶段。
+        /// </summary>
+        public static Dictionary<string, List<List<string>>> LoadAllRawSheets(string filePath)
+        {
+            var result = new Dictionary<string, List<List<string>>>();
+            using var workbook = new XlsxWorkbook(filePath);
+            foreach (var sheetName in workbook.SheetNames)
+            {
+                result[sheetName] = workbook.ReadSheet(sheetName);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// 读取一整张 sheet。
+        /// 不跳过任何行，不转成类。
+        ///
+        /// 例如礼物表会完整读出：
+        /// - 第 1 行：英文代码字段名
+        /// - 第 2 行：中文说明
+        /// - 第 3 行：字段类型
+        /// - 第 4 行开始：礼物数据
+        /// </summary>
+        public static List<List<string>> LoadRawSheet(string filePath, string sheetName)
+        {
+            using var workbook = new XlsxWorkbook(filePath);
+            return workbook.ReadSheet(sheetName);
+        }
+
+        /// <summary>
         /// 读取单个 sheet。
         /// 默认第 1 行是表头，第 2 行开始是数据。
         /// </summary>
         public static List<T> LoadSheet<T>(string filePath, string sheetName) where T : new()
         {
+            return LoadSheet<T>(filePath, sheetName, 1, 2);
+        }
+
+        /// <summary>
+        /// 读取单个 sheet。
+        ///
+        /// headerRow：表头在第几行，从 1 开始数
+        /// dataStartRow：数据从第几行开始，从 1 开始数
+        ///
+        /// 例子：
+        /// - 第 1 行是英文表头
+        /// - 第 2 行是中文说明
+        /// - 第 3 行是类型
+        /// - 第 4 行开始是数据
+        ///
+        /// 调用：
+        /// LoadSheet<GiftConfigRow>(path, "礼物表", 1, 4)
+        /// </summary>
+        public static List<T> LoadSheet<T>(string filePath, string sheetName, int headerRow, int dataStartRow) where T : new()
+        {
             using var workbook = new XlsxWorkbook(filePath);
-            return LoadSheet<T>(workbook, sheetName);
+            return LoadSheet<T>(workbook, sheetName, headerRow, dataStartRow);
         }
 
         private static List<T> LoadSheet<T>(XlsxWorkbook workbook, string sheetName) where T : new()
+        {
+            return LoadSheet<T>(workbook, sheetName, 1, 2);
+        }
+
+        private static List<T> LoadSheet<T>(XlsxWorkbook workbook, string sheetName, int headerRow, int dataStartRow) where T : new()
         {
             var rows = workbook.ReadSheet(sheetName);
             if (rows.Count == 0)
@@ -68,13 +139,15 @@ namespace Core.Table
                 return new List<T>();
             }
 
-            var headerRow = rows[0];
-            var headers = headerRow.Select(x => x?.Trim() ?? string.Empty).ToArray();
+            var headerIndex = Math.Max(0, headerRow - 1);
+            var dataStartIndex = Math.Max(headerIndex + 1, dataStartRow - 1);
+            var headerCells = rows[headerIndex];
+            var headers = headerCells.Select(x => x?.Trim() ?? string.Empty).ToArray();
             var fields = typeof(T).GetFields(BindingFlags.Instance | BindingFlags.Public);
             var fieldMap = fields.ToDictionary(f => f.Name, f => f, StringComparer.OrdinalIgnoreCase);
 
             var list = new List<T>();
-            for (var rowIndex = 1; rowIndex < rows.Count; rowIndex++)
+            for (var rowIndex = dataStartIndex; rowIndex < rows.Count; rowIndex++)
             {
                 var row = rows[rowIndex];
                 var item = new T();

@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using Core.Runtime;
 using Core.Table;
 using UnityEngine;
@@ -15,7 +14,7 @@ namespace Core.Examples
     /// 1. 先看 Awake：怎么初始化默认数值
     /// 2. 再看 OnEnable：UI 怎么监听数值和事件
     /// 3. 再看下面几个 public 方法：按钮、礼物、提案怎么改数据
-    /// 4. 最后看 LoadVariableConfigFromExcel：Excel 怎么读取成类
+    /// 4. 最后看 ReadWholeGiftTable：Excel 怎么读取整张表
     ///
     /// 使用方法：
     /// - 在场景里建一个空物体
@@ -23,24 +22,15 @@ namespace Core.Examples
     /// - 可选：把 UI Text / Slider 拖到 Inspector 对应字段
     /// - 播放后按 Space，可以看到按钮事件日志
     ///
-    /// Excel 表结构建议：
+    /// Excel 表格示例：
     ///
-    /// Sheet 名：变量表
+    /// 文件位置：
+    /// Assets/StreamingAssets/GiftConfigExample.xlsx
     ///
-    /// 第一行必须是字段名，字段名要和 VariableConfigRow 类里的 public 字段一致：
+    /// Sheet 名：
+    /// 礼物表
     ///
-    /// ID | Name | InitValue | MinValue | MaxValue | Desc
-    ///
-    /// 第二行开始填数据：
-    ///
-    /// A_1 | 支持率 | 50 | 0 | 100 | 玩家支持率
-    /// D_1 | 威慑值 | 0  | 0 | 100 | 胜利进度
-    /// H_1 | 心率   | 70 | 40 | 140 | 当前心率
-    ///
-    /// 注意：
-    /// - 这个 Excel 读取器是比赛用轻量版，只支持 .xlsx
-    /// - 表头建议用英文，类字段也用英文，最稳
-    /// - 中文说明可以放在 Name / Desc 里
+    /// 按 T 键可以读取整张礼物表并打印到 Console。
     /// </summary>
     public sealed class GameDataUsageExample : MonoBehaviour
     {
@@ -52,11 +42,11 @@ namespace Core.Examples
         [SerializeField] private Slider deterrenceSlider;
         [SerializeField] private Slider heartRateSlider;
 
-        [Header("可选 Excel 配置")]
-        [Tooltip("例如：GameConfig.xlsx。文件建议放到 Assets/StreamingAssets/ 下面。")]
-        [SerializeField] private string excelFileName = "GameConfig.xlsx";
-        [SerializeField] private string variableSheetName = "变量表";
-        [SerializeField] private bool loadExcelOnStart;
+        [Header("可选 Excel 表格读取示例")]
+        [Tooltip("文件需要放到 Assets/StreamingAssets/ 下面。")]
+        [SerializeField] private string excelFileName = "GiftConfigExample.xlsx";
+        [SerializeField] private string giftSheetName = "礼物表";
+        [SerializeField] private bool readWholeGiftTableOnStart;
 
         private IDisposable _supportRateListener;
         private IDisposable _deterrenceListener;
@@ -67,13 +57,11 @@ namespace Core.Examples
 
         private void Awake()
         {
-            if (loadExcelOnStart)
+            RegisterDefaultValuesByCode();
+
+            if (readWholeGiftTableOnStart)
             {
-                LoadVariableConfigFromExcel();
-            }
-            else
-            {
-                RegisterDefaultValuesByCode();
+                ReadWholeGiftTable();
             }
         }
 
@@ -115,29 +103,6 @@ namespace Core.Examples
             GameDataCenter.RegisterDefault(GameDataKeys.SupportRate, 50f);
             GameDataCenter.RegisterDefault(GameDataKeys.Deterrence, 0f);
             GameDataCenter.RegisterDefault(GameDataKeys.HeartRate, 70f);
-        }
-
-        /// <summary>
-        /// 从 Excel 读取变量表，并注册默认值。
-        ///
-        /// 文件位置建议：
-        /// Assets/StreamingAssets/GameConfig.xlsx
-        /// </summary>
-        public void LoadVariableConfigFromExcel()
-        {
-            var path = System.IO.Path.Combine(Application.streamingAssetsPath, excelFileName);
-            var rows = ExcelTableLoader.LoadSheet<VariableConfigRow>(path, variableSheetName);
-
-            foreach (var row in rows)
-            {
-                if (string.IsNullOrWhiteSpace(row.ID))
-                {
-                    continue;
-                }
-
-                GameDataCenter.RegisterDefault(row.ID, row.InitValue);
-                Debug.Log($"读取变量配置：{row.ID} {row.Name} 初始值={row.InitValue}");
-            }
         }
 
         /// <summary>
@@ -206,6 +171,7 @@ namespace Core.Examples
             // A = 通过提案
             // R = 否决提案
             // G = 收礼物
+            // T = 读取整张礼物表
             // Backspace = 重开
             if (Input.GetKeyDown(KeyCode.Space))
             {
@@ -227,27 +193,64 @@ namespace Core.Examples
                 ReceiveGift();
             }
 
+            if (Input.GetKeyDown(KeyCode.T))
+            {
+                ReadWholeGiftTable();
+            }
+
             if (Input.GetKeyDown(KeyCode.Backspace))
             {
                 RestartGame();
             }
         }
 
+        /// <summary>
+        /// 读取整张礼物表。
+        ///
+        /// 这个方法只是演示“Excel 确实能读出来”，不会把表格内容注册进 GameDataCenter。
+        ///
+        /// 文件：
+        /// Assets/StreamingAssets/GiftConfigExample.xlsx
+        ///
+        /// Sheet：
+        /// 礼物表
+        ///
+        /// 读出来后会逐行打印：
+        /// 第 1 行：英文代码字段名
+        /// 第 2 行：中文说明
+        /// 第 3 行：类型说明
+        /// 第 4 行开始：真正礼物数据
+        /// </summary>
+        public void ReadWholeGiftTable()
+        {
+            var path = System.IO.Path.Combine(Application.streamingAssetsPath, excelFileName);
+            var table = ExcelTableLoader.LoadRawSheet(path, giftSheetName);
+
+            Debug.Log($"开始读取整张表：{excelFileName} / {giftSheetName}，共 {table.Count} 行");
+
+            for (var rowIndex = 0; rowIndex < table.Count; rowIndex++)
+            {
+                var row = table[rowIndex];
+                var line = string.Join(" | ", row);
+                Debug.Log($"第 {rowIndex + 1} 行：{line}");
+            }
+        }
+
         private void OnSupportRateChanged(GameDataChangedEvent change)
         {
-            SetText(supportRateText, $"支持率：{change.NewValue:0}");
+            SetText(supportRateText, $"支持率: {change.NewValue:0}");
             SetSlider(supportRateSlider, change.NewValue, 0f, 100f);
         }
 
         private void OnDeterrenceChanged(GameDataChangedEvent change)
         {
-            SetText(deterrenceText, $"威慑值：{change.NewValue:0}");
+            SetText(deterrenceText, $"威慑值: {change.NewValue:0}");
             SetSlider(deterrenceSlider, change.NewValue, 0f, 100f);
         }
 
         private void OnHeartRateChanged(GameDataChangedEvent change)
         {
-            SetText(heartRateText, $"心率：{change.NewValue:0}");
+            SetText(heartRateText, $"心率: {change.NewValue:0}");
             SetSlider(heartRateSlider, change.NewValue, 40f, 140f);
         }
 
@@ -287,47 +290,4 @@ namespace Core.Examples
         }
     }
 
-    /// <summary>
-    /// 变量表的一行。
-    ///
-    /// Excel 第一行表头必须对应这些字段名：
-    /// ID | Name | InitValue | MinValue | MaxValue | Desc
-    ///
-    /// 表格例子：
-    /// A_1 | 支持率 | 50 | 0 | 100 | 玩家支持率
-    /// D_1 | 威慑值 | 0  | 0 | 100 | 胜利进度
-    /// H_1 | 心率   | 70 | 40 | 140 | 当前心率
-    /// </summary>
-    [TableRow]
-    public sealed class VariableConfigRow
-    {
-        public string ID;
-        public string Name;
-        public float InitValue;
-        public float MinValue;
-        public float MaxValue;
-        public string Desc;
-    }
-
-    /// <summary>
-    /// 效果表的一行，先作为示例。
-    ///
-    /// Excel 第一行表头：
-    /// EffectID | TargetID | Op | Value | Desc
-    ///
-    /// 表格例子：
-    /// E_1 | A_1 | Add | 5  | 支持率增加
-    /// E_2 | H_1 | Add | -2 | 心率下降
-    ///
-    /// 以后你们要做“礼物/推特/事件改数值”，就可以从这张表读。
-    /// </summary>
-    [TableRow]
-    public sealed class EffectConfigRow
-    {
-        public string EffectID;
-        public string TargetID;
-        public string Op;
-        public float Value;
-        public string Desc;
-    }
 }
