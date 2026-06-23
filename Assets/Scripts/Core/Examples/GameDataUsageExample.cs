@@ -51,7 +51,6 @@ namespace Core.Examples
         private IDisposable _supportRateListener;
         private IDisposable _deterrenceListener;
         private IDisposable _heartRateListener;
-        private IDisposable _allDataListener;
         private IDisposable _buttonEventListener;
         private IDisposable _giftEventListener;
 
@@ -74,9 +73,6 @@ namespace Core.Examples
             _deterrenceListener = GameDataCenter.Observe(GameDataKeys.Deterrence, OnDeterrenceChanged, true);
             _heartRateListener = GameDataCenter.Observe(GameDataKeys.HeartRate, OnHeartRateChanged, true);
 
-            // 监听所有数值变化，适合调试。
-            _allDataListener = GameDataCenter.ObserveAll(OnAnyDataChanged);
-
             // 监听离散事件。
             _buttonEventListener = GameEventBus.Observe(GameEventNames.ButtonPressed, OnButtonPressed);
             _giftEventListener = GameEventBus.Observe(GameEventNames.GiftReceived, OnGiftReceivedEvent);
@@ -89,7 +85,6 @@ namespace Core.Examples
             _supportRateListener?.Dispose();
             _deterrenceListener?.Dispose();
             _heartRateListener?.Dispose();
-            _allDataListener?.Dispose();
             _buttonEventListener?.Dispose();
             _giftEventListener?.Dispose();
         }
@@ -252,11 +247,6 @@ namespace Core.Examples
         {
             SetText(heartRateText, $"心率: {change.NewValue:0}");
             SetSlider(heartRateSlider, change.NewValue, 40f, 140f);
-        }
-
-        private void OnAnyDataChanged(GameDataChangedEvent change)
-        {
-            Debug.Log($"[数值变化] {change.Key}: {change.OldValue} -> {change.NewValue}, 来源={change.Source}");
         }
 
         private void OnButtonPressed(GameEvent gameEvent)

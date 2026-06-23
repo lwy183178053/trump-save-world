@@ -44,43 +44,6 @@ namespace Core.Table
     public static class ExcelTableLoader
     {
         /// <summary>
-        /// 读取一个 xlsx 文件中的所有 sheet。
-        /// 返回值：sheet 名 -> 该 sheet 对应的行对象列表。
-        /// </summary>
-        public static Dictionary<string, List<T>> LoadAllSheets<T>(string filePath) where T : new()
-        {
-            var result = new Dictionary<string, List<T>>();
-            using var workbook = new XlsxWorkbook(filePath);
-            foreach (var sheetName in workbook.SheetNames)
-            {
-                result[sheetName] = LoadSheet<T>(workbook, sheetName);
-            }
-
-            return result;
-        }
-
-        /// <summary>
-        /// 读取整个 Excel 文件里的所有 sheet。
-        /// 不做反射，不转成类，直接返回原始表格内容。
-        ///
-        /// 返回值：
-        /// sheet 名 -> 表格二维列表
-        ///
-        /// 适合你现在这种“先看看整张表读出来是什么样”的阶段。
-        /// </summary>
-        public static Dictionary<string, List<List<string>>> LoadAllRawSheets(string filePath)
-        {
-            var result = new Dictionary<string, List<List<string>>>();
-            using var workbook = new XlsxWorkbook(filePath);
-            foreach (var sheetName in workbook.SheetNames)
-            {
-                result[sheetName] = workbook.ReadSheet(sheetName);
-            }
-
-            return result;
-        }
-
-        /// <summary>
         /// 读取一整张 sheet。
         /// 不跳过任何行，不转成类。
         ///
@@ -124,11 +87,6 @@ namespace Core.Table
         {
             using var workbook = new XlsxWorkbook(filePath);
             return LoadSheet<T>(workbook, sheetName, headerRow, dataStartRow);
-        }
-
-        private static List<T> LoadSheet<T>(XlsxWorkbook workbook, string sheetName) where T : new()
-        {
-            return LoadSheet<T>(workbook, sheetName, 1, 2);
         }
 
         private static List<T> LoadSheet<T>(XlsxWorkbook workbook, string sheetName, int headerRow, int dataStartRow) where T : new()
@@ -234,8 +192,6 @@ namespace Core.Table
                 _sharedStrings = LoadSharedStrings();
                 _sheetTargets = LoadSheetTargets();
             }
-
-            public IEnumerable<string> SheetNames => _sheetTargets.Keys;
 
             public List<List<string>> ReadSheet(string sheetName)
             {
@@ -379,10 +335,27 @@ namespace Core.Table
                         continue;
                     }
 
-                    dict[id] = "xl/" + target.Replace("\\", "/").TrimStart('/');
+                    dict[id] = NormalizeRelationshipTarget(target);
                 }
 
                 return dict;
+            }
+
+            private static string NormalizeRelationshipTarget(string target)
+            {
+                var normalized = target.Replace("\\", "/");
+
+                if (normalized.StartsWith("/"))
+                {
+                    return normalized.TrimStart('/');
+                }
+
+                if (normalized.StartsWith("xl/"))
+                {
+                    return normalized;
+                }
+
+                return "xl/" + normalized;
             }
 
             private static int GetColumnIndex(string cellReference)

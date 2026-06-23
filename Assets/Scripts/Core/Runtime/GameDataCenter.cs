@@ -5,16 +5,11 @@ using UnityEngine;
 namespace Core.Runtime
 {
     /// <summary>
-    /// 简化版全局数值中心。
     ///
-    /// 你可以把它理解成一个“全局字典”：
     /// - 支持率、威慑值、心率都放这里
     /// - 外部不要直接改字典
     /// - 统一走 Get / Set / Add
     /// - 一旦数值变化，就自动通知监听者
-    ///
-    /// 这个版本是给比赛用的，刻意做得很轻：
-    /// 只保留最常用的功能，不做复杂的批处理和存档系统。
     /// </summary>
     public static class GameDataCenter
     {
@@ -22,19 +17,12 @@ namespace Core.Runtime
         private static readonly Dictionary<string, float> Defaults = new Dictionary<string, float>();
         private static readonly Dictionary<string, List<Action<GameDataChangedEvent>>> KeyListeners = new Dictionary<string, List<Action<GameDataChangedEvent>>>();
 
-        /// <summary>
-        /// 所有数值变化的总事件。
-        /// 适合调试面板、日志、全局 UI。
-        /// </summary>
-        public static event Action<GameDataChangedEvent> ValueChanged;
-
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetStatics()
         {
             Values.Clear();
             Defaults.Clear();
             KeyListeners.Clear();
-            ValueChanged = null;
         }
 
         /// <summary>
@@ -154,41 +142,8 @@ namespace Core.Runtime
             return new DisposableAction(() => RemoveListener(key, listener));
         }
 
-        /// <summary>
-        /// 订阅所有变化。
-        /// </summary>
-        public static IDisposable ObserveAll(Action<GameDataChangedEvent> listener, bool replayCurrentState = false)
-        {
-            if (listener == null)
-            {
-                throw new ArgumentNullException(nameof(listener));
-            }
-
-            ValueChanged += listener;
-
-            if (replayCurrentState)
-            {
-                foreach (var pair in Values)
-                {
-                    listener(new GameDataChangedEvent(pair.Key, pair.Value, pair.Value, GameChangeSource.Replay, true, DateTime.UtcNow));
-                }
-            }
-
-            return new DisposableAction(() => ValueChanged -= listener);
-        }
-
-        // 下面这些方法是老名字，保留一份，避免你现有脚本改太多。
-        public static float GetValue(string key, float fallback = 0f) => Get(key, fallback);
-        public static void SetValue(string key, float value, GameChangeSource source = GameChangeSource.Unknown) => Set(key, value, source);
-        public static void AddValue(string key, float delta, GameChangeSource source = GameChangeSource.Unknown) => Add(key, delta, source);
-        public static void ClampValue(string key, float minValue, float maxValue, GameChangeSource source = GameChangeSource.Unknown) => Clamp(key, minValue, maxValue, source);
-        public static void ResetValue(string key, GameChangeSource source = GameChangeSource.Restore) => Reset(key, source);
-        public static IDisposable ObserveValue(string key, Action<GameDataChangedEvent> listener, bool replayCurrentValue = true) => Observe(key, listener, replayCurrentValue);
-
         private static void Emit(GameDataChangedEvent change)
         {
-            ValueChanged?.Invoke(change);
-
             if (!KeyListeners.TryGetValue(change.Key, out var listeners))
             {
                 return;

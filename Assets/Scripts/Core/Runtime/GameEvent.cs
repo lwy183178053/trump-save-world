@@ -28,19 +28,5 @@ namespace Core.Runtime
             Source = source;
             TimestampUtc = timestampUtc;
         }
-
-        /// <summary>
-        /// 尝试把 Payload 转成指定类型。
-        /// 适合你知道这个事件携带的就是某种固定数据时使用。
-        /// </summary>
-        public T GetPayload<T>()
-        {
-            if (Payload is T typed)
-            {
-                return typed;
-            }
-
-            return default;
-        }
     }
 }

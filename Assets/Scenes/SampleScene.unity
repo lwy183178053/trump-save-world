@@ -1978,9 +1978,9 @@ MonoBehaviour:
   supportRateSlider: {fileID: 711042125}
   deterrenceSlider: {fileID: 1968672614}
   heartRateSlider: {fileID: 865999189}
-  excelFileName: GameConfig.xlsx
-  variableSheetName: "\u53D8\u91CF\u8868"
-  loadExcelOnStart: 0
+  excelFileName: GiftConfigExample.xlsx
+  giftSheetName: "\u793C\u7269\u8868"
+  readWholeGiftTableOnStart: 0
 --- !u!4 &1592548324
 Transform:
   m_ObjectHideFlags: 0
