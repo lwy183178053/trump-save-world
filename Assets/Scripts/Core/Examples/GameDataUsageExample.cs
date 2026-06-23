@@ -4,6 +4,7 @@ using Core.Runtime;
 using Core.Table;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 namespace Core.Examples
 {
@@ -44,9 +45,9 @@ namespace Core.Examples
     public sealed class GameDataUsageExample : MonoBehaviour
     {
         [Header("可选 UI 绑定")]
-        [SerializeField] private Text supportRateText;
-        [SerializeField] private Text deterrenceText;
-        [SerializeField] private Text heartRateText;
+        [SerializeField] private TextMeshProUGUI supportRateText;
+        [SerializeField] private TextMeshProUGUI deterrenceText;
+        [SerializeField] private TextMeshProUGUI heartRateText;
         [SerializeField] private Slider supportRateSlider;
         [SerializeField] private Slider deterrenceSlider;
         [SerializeField] private Slider heartRateSlider;
@@ -265,7 +266,7 @@ namespace Core.Examples
             Debug.Log($"[事件] 收到礼物，礼物ID={gameEvent.Payload}");
         }
 
-        private static void SetText(Text target, string value)
+        private static void SetText(TextMeshProUGUI target, string value)
         {
             if (target != null)
             {
