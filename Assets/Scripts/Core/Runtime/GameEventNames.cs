@@ -14,5 +14,6 @@ namespace Core.Runtime
         public const string GameWon = "game.won";
         public const string GameLost = "game.lost";
         public const string ValueThresholdReached = "value.threshold_reached";
+        public const string TwitterPosted = "twitter.posted";//刚QIE加的，QTE完成后触发的事件
     }
 }
